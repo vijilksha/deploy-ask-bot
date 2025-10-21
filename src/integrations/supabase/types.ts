@@ -50,6 +50,153 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          schema_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          schema_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          schema_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_schema_id_fkey"
+            columns: ["schema_id"]
+            isOneToOne: false
+            referencedRelation: "database_schemas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      database_schemas: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          schema_definition: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          schema_definition: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          schema_definition?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          query_result: Json | null
+          role: string
+          sql_query: string | null
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          query_result?: Json | null
+          role: string
+          sql_query?: string | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          query_result?: Json | null
+          role?: string
+          sql_query?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      query_history: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          execution_result: Json | null
+          execution_status: string | null
+          generated_sql: string
+          id: string
+          natural_language_query: string
+          optimization_suggestions: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          execution_result?: Json | null
+          execution_status?: string | null
+          generated_sql: string
+          id?: string
+          natural_language_query: string
+          optimization_suggestions?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          execution_result?: Json | null
+          execution_status?: string | null
+          generated_sql?: string
+          id?: string
+          natural_language_query?: string
+          optimization_suggestions?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "query_history_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

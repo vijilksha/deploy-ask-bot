@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthForm } from "@/components/AuthForm";
-import { Dashboard } from "@/components/Dashboard";
+import { SQLDashboard } from "@/components/SQLDashboard";
 
 const Index = () => {
   const [session, setSession] = useState<any>(null);
@@ -30,7 +30,7 @@ const Index = () => {
     );
   }
 
-  return session ? <Dashboard /> : <AuthForm />;
+  return session ? <SQLDashboard /> : <AuthForm />;
 };
 
 export default Index;
