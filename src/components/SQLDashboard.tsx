@@ -4,9 +4,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { SQLChat } from "./SQLChat";
 import { SchemaManager } from "./SchemaManager";
+import { QueryExecutor } from "./QueryExecutor";
+import { DocumentationManager } from "./DocumentationManager";
+import { SimilarQueries } from "./SimilarQueries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Database, History, Plus, LogOut } from "lucide-react";
+import { MessageSquare, Database, History, Plus, LogOut, Play, FileText, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 
 type Conversation = {
   id: string;
@@ -19,6 +23,8 @@ export const SQLDashboard = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<string | null>(null);
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
+  const [executorQuery, setExecutorQuery] = useState("");
+  const [similarQuery, setSimilarQuery] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -91,7 +97,11 @@ export const SQLDashboard = () => {
       {/* Sidebar */}
       <div className="w-64 border-r bg-muted/10 flex flex-col">
         <div className="p-4 border-b">
-          <h1 className="text-xl font-bold">SQL AI Assistant</h1>
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            SQL AI Bot
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">RAG-Powered Assistant</p>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -142,13 +152,21 @@ export const SQLDashboard = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Chat
             </TabsTrigger>
+            <TabsTrigger value="execute">
+              <Play className="w-4 h-4 mr-2" />
+              Execute
+            </TabsTrigger>
+            <TabsTrigger value="knowledge">
+              <FileText className="w-4 h-4 mr-2" />
+              Knowledge
+            </TabsTrigger>
+            <TabsTrigger value="similar">
+              <History className="w-4 h-4 mr-2" />
+              Similar
+            </TabsTrigger>
             <TabsTrigger value="schemas">
               <Database className="w-4 h-4 mr-2" />
               Schemas
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="w-4 h-4 mr-2" />
-              History
             </TabsTrigger>
           </TabsList>
 
@@ -181,15 +199,51 @@ export const SQLDashboard = () => {
             <SchemaManager onSchemaSelect={handleSchemaSelect} />
           </TabsContent>
 
-          <TabsContent value="history" className="flex-1 m-0 p-6 overflow-y-auto">
+          <TabsContent value="execute" className="flex-1 m-0 p-6 overflow-y-auto">
             <Card>
               <CardHeader>
-                <CardTitle>Query History</CardTitle>
+                <CardTitle>Execute SQL Query</CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Your query history will appear here. Execute queries from conversations to build your history.
-                </p>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">SQL Query:</label>
+                  <Textarea
+                    value={executorQuery}
+                    onChange={(e) => setExecutorQuery(e.target.value)}
+                    className="font-mono text-sm min-h-32"
+                    placeholder="Enter or paste SQL query to execute..."
+                  />
+                </div>
+                {activeConversation && (
+                  <QueryExecutor 
+                    sqlQuery={executorQuery}
+                    conversationId={activeConversation}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="knowledge" className="flex-1 m-0 p-6 overflow-y-auto">
+            <DocumentationManager />
+          </TabsContent>
+
+          <TabsContent value="similar" className="flex-1 m-0 p-6 overflow-y-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Find Similar Queries</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold">Query to find similar:</label>
+                  <Textarea
+                    value={similarQuery}
+                    onChange={(e) => setSimilarQuery(e.target.value)}
+                    className="min-h-24"
+                    placeholder="Enter a query description to find similar past queries..."
+                  />
+                </div>
+                <SimilarQueries currentQuery={similarQuery} />
               </CardContent>
             </Card>
           </TabsContent>

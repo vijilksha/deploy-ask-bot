@@ -12,7 +12,13 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, schemaDefinition, mode } = await req.json();
+    const { messages, schemaDefinition, mode, includeRAG = false } = await req.json();
+    
+    const authHeader = req.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    let ragContext = "";
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -67,7 +73,48 @@ You can:
 - Provide data insights`;
     }
 
-    console.log("Calling Lovable AI with mode:", mode);
+    // RAG: Fetch similar queries and documentation
+    if (includeRAG && authHeader && supabaseUrl && supabaseKey) {
+      try {
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        const token = authHeader.replace("Bearer ", "");
+        const { data: { user } } = await supabase.auth.getUser(token);
+        
+        if (user) {
+          const lastUserMessage = messages[messages.length - 1]?.content || "";
+          
+          // Find similar past queries
+          const { data: similarQueries } = await supabase.functions.invoke("find-similar", {
+            body: { query: lastUserMessage, type: "query", matchCount: 3 },
+          });
+          
+          // Find relevant documentation
+          const { data: similarDocs } = await supabase.functions.invoke("find-similar", {
+            body: { query: lastUserMessage, type: "documentation", matchCount: 2 },
+          });
+          
+          if (similarQueries?.results?.length > 0) {
+            ragContext += "\n\nSimilar past queries:\n";
+            similarQueries.results.forEach((q: any) => {
+              ragContext += `- ${q.query_text} (used ${q.usage_count} times)\n`;
+            });
+          }
+          
+          if (similarDocs?.results?.length > 0) {
+            ragContext += "\n\nRelevant documentation:\n";
+            similarDocs.results.forEach((d: any) => {
+              ragContext += `- ${d.title}: ${d.content.substring(0, 200)}...\n`;
+            });
+          }
+        }
+      } catch (e) {
+        console.error("RAG fetch error:", e);
+      }
+    }
+
+    console.log("Calling Lovable AI with mode:", mode, "RAG enabled:", includeRAG);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -78,7 +125,7 @@ You can:
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: systemPrompt + ragContext },
           ...messages,
         ],
         stream: true,

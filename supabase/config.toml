@@ -2,3 +2,12 @@ project_id = "zpeylijbwzzdlhembxlx"
 
 [functions.sql-ai-chat]
 verify_jwt = false
+
+[functions.execute-sql]
+verify_jwt = true
+
+[functions.generate-embeddings]
+verify_jwt = true
+
+[functions.find-similar]
+verify_jwt = true

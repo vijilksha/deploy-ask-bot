@@ -25,6 +25,8 @@ export const SQLChat = ({
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<Mode>("chat");
   const [schemaDefinition, setSchemaDefinition] = useState(null);
+  const [useRAG, setUseRAG] = useState(true);
+  const [currentSQLQuery, setCurrentSQLQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -93,6 +95,7 @@ export const SQLChat = ({
           messages: [...messages, userMessage],
           schemaDefinition,
           mode,
+          includeRAG: useRAG,
         }),
       });
 
@@ -146,7 +149,13 @@ export const SQLChat = ({
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
-            if (content) updateAssistant(content);
+            if (content) {
+              updateAssistant(content);
+              // Extract SQL if in generate mode
+              if (mode === "generate" && content.includes("SELECT")) {
+                setCurrentSQLQuery(prev => prev + content);
+              }
+            }
           } catch {
             textBuffer = line + "\n" + textBuffer;
             break;
@@ -155,7 +164,18 @@ export const SQLChat = ({
       }
 
       if (assistantContent) {
-        await saveMessage("assistant", assistantContent);
+        await saveMessage("assistant", assistantContent, mode === "generate" ? currentSQLQuery : undefined);
+        
+        // Generate embedding for the query if in generate mode
+        if (mode === "generate" && currentSQLQuery) {
+          await supabase.functions.invoke("generate-embeddings", {
+            body: {
+              text: `${userInput}\n${currentSQLQuery}`,
+              type: "query",
+              referenceId: null,
+            },
+          });
+        }
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -171,7 +191,7 @@ export const SQLChat = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex gap-2 p-4 border-b">
+      <div className="flex gap-2 p-4 border-b flex-wrap">
         <Button
           variant={mode === "chat" ? "default" : "outline"}
           size="sm"
@@ -202,6 +222,13 @@ export const SQLChat = ({
         >
           <Zap className="w-4 h-4 mr-2" />
           Optimize
+        </Button>
+        <Button
+          variant={useRAG ? "default" : "outline"}
+          size="sm"
+          onClick={() => setUseRAG(!useRAG)}
+        >
+          RAG {useRAG ? "On" : "Off"}
         </Button>
       </div>
 
