@@ -22,7 +22,7 @@ serve(async (req) => {
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+      throw new Error("AI API key is not configured");
     }
 
     // Build system prompt based on mode
@@ -114,7 +114,7 @@ You can:
       }
     }
 
-    console.log("Calling Lovable AI with mode:", mode, "RAG enabled:", includeRAG);
+    console.log("Calling AI with mode:", mode, "RAG enabled:", includeRAG);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -145,7 +145,7 @@ You can:
       
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits to your Lovable AI workspace." }),
+          JSON.stringify({ error: "Payment required. Please add credits to your AI workspace." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
