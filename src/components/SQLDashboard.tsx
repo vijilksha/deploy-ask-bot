@@ -31,56 +31,36 @@ export const SQLDashboard = () => {
     loadConversations();
   }, []);
 
-  const loadConversations = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("conversations")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
-
-    if (error) {
-      toast({
-        title: "Error loading conversations",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      setConversations(data || []);
-      if (data && data.length > 0 && !activeConversation) {
+  const loadConversations = () => {
+    const stored = localStorage.getItem("conversations");
+    if (stored) {
+      const data = JSON.parse(stored);
+      setConversations(data);
+      if (data.length > 0 && !activeConversation) {
         setActiveConversation(data[0].id);
         setActiveSchema(data[0].schema_id);
       }
     }
   };
 
-  const createConversation = async (schemaId?: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const createConversation = (schemaId?: string) => {
+    const newConv: Conversation = {
+      id: crypto.randomUUID(),
+      title: "New Conversation",
+      schema_id: schemaId || null,
+      created_at: new Date().toISOString(),
+    };
 
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: user.id,
-        title: "New Conversation",
-        schema_id: schemaId || null,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else if (data) {
-      setConversations([data, ...conversations]);
-      setActiveConversation(data.id);
-      setActiveSchema(data.schema_id);
-    }
+    const updated = [newConv, ...conversations];
+    setConversations(updated);
+    localStorage.setItem("conversations", JSON.stringify(updated));
+    setActiveConversation(newConv.id);
+    setActiveSchema(newConv.schema_id);
+    
+    toast({
+      title: "Conversation created",
+      description: "New conversation started successfully",
+    });
   };
 
   const handleDisconnect = () => {
