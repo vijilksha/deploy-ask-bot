@@ -83,8 +83,9 @@ export const SQLDashboard = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
+  const handleDisconnect = () => {
+    localStorage.removeItem("dbConnection");
+    window.location.reload();
   };
 
   const handleSchemaSelect = (schemaId: string) => {
@@ -137,9 +138,9 @@ export const SQLDashboard = () => {
         </div>
 
         <div className="p-4 border-t">
-          <Button variant="outline" onClick={handleSignOut} className="w-full">
+          <Button variant="outline" onClick={handleDisconnect} className="w-full">
             <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
+            Disconnect
           </Button>
         </div>
       </div>
