@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Send, Code, BookOpen, Zap, Table } from "lucide-react";
+import { Loader2, Send, Code, BookOpen, Zap, Table, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,33 +54,28 @@ export const SQLChat = ({
     if (data) setSchemaDefinition(data.schema_definition);
   };
 
-  const loadMessages = async () => {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-
-    if (data) {
-      setMessages(data.map(m => ({ role: m.role as "user" | "assistant", content: m.content })));
+  const loadMessages = () => {
+    // Messages are now stored only in component state, not persisted
+    // Load from localStorage for the conversation if needed
+    const stored = localStorage.getItem(`messages_${conversationId}`);
+    if (stored) {
+      setMessages(JSON.parse(stored));
     }
   };
 
-  const saveMessage = async (role: "user" | "assistant", content: string, sqlQuery?: string) => {
-    await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      role,
-      content,
-      sql_query: sqlQuery,
-    });
+  const saveMessage = (role: "user" | "assistant", content: string, sqlQuery?: string) => {
+    // Save to localStorage instead of database
+    const updated = [...messages, { role, content, sqlQuery }];
+    localStorage.setItem(`messages_${conversationId}`, JSON.stringify(updated));
   };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { role: "user", content: input };
-    setMessages(prev => [...prev, userMessage]);
-    await saveMessage("user", input);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    localStorage.setItem(`messages_${conversationId}`, JSON.stringify(updatedMessages));
     
     const userInput = input;
     setInput("");
@@ -168,73 +163,14 @@ export const SQLChat = ({
       }
 
       if (assistantContent) {
-        // If in generate mode, automatically execute the SQL
-        if (mode === "generate" && assistantContent.includes("SELECT")) {
-          try {
-            // Extract SQL query from response
-            const sqlMatch = assistantContent.match(/```sql\n([\s\S]+?)\n```/) || 
-                            assistantContent.match(/```\n([\s\S]+?)\n```/);
-            const sqlQuery = sqlMatch ? sqlMatch[1] : assistantContent;
-            
-            // Get database connection from localStorage
-            const dbConnection = localStorage.getItem("dbConnection");
-            if (dbConnection) {
-              const connDetails = JSON.parse(dbConnection);
-              
-              // Execute the query
-              const executeResponse = await fetch(
-                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/execute-sql`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-                  },
-                  body: JSON.stringify({
-                    query: sqlQuery,
-                    dbConnection: connDetails,
-                  }),
-                }
-              );
-              
-              const executeResult = await executeResponse.json();
-              
-              if (executeResult.status === "success") {
-                // Update the last assistant message with results
-                setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {
-                    ...updated[updated.length - 1],
-                    sqlQuery,
-                    queryResults: executeResult.data,
-                    insights: executeResult.insights,
-                  };
-                  return updated;
-                });
-                
-                toast({
-                  title: "Query executed successfully",
-                  description: `${executeResult.rowCount} rows returned`,
-                });
-              } else {
-                toast({
-                  title: "Query execution failed",
-                  description: executeResult.error,
-                  variant: "destructive",
-                });
-              }
-            }
-          } catch (execError) {
-            console.error("Execution error:", execError);
-            toast({
-              title: "Execution error",
-              description: execError instanceof Error ? execError.message : "Failed to execute query",
-              variant: "destructive",
-            });
-          }
-        }
+        // Save final message to localStorage
+        const finalMessages = [...messages, userMessage, { role: "assistant" as const, content: assistantContent }];
+        localStorage.setItem(`messages_${conversationId}`, JSON.stringify(finalMessages));
         
-        await saveMessage("assistant", assistantContent, mode === "generate" ? currentSQLQuery : undefined);
+        toast({
+          title: "Note",
+          description: "Copy the SQL query and run it manually in your local database. Edge functions cannot connect to localhost.",
+        });
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -303,42 +239,26 @@ export const SQLChat = ({
           >
             <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content}</pre>
             
-            {msg.queryResults && msg.queryResults.length > 0 && (
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <Table className="w-4 h-4" />
-                  Query Results ({msg.queryResults.length} rows)
-                </div>
-                <div className="border rounded-lg overflow-auto max-h-96">
-                  <UITable>
-                    <TableHeader>
-                      <TableRow>
-                        {Object.keys(msg.queryResults[0]).map((key) => (
-                          <TableHead key={key}>{key}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {msg.queryResults.slice(0, 100).map((row: any, rowIdx: number) => (
-                        <TableRow key={rowIdx}>
-                          {Object.values(row).map((value: any, colIdx: number) => (
-                            <TableCell key={colIdx}>
-                              {value !== null ? String(value) : "NULL"}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </UITable>
-                </div>
-                
-                {msg.insights && (
-                  <div className="mt-3 p-3 bg-accent/50 rounded-lg">
-                    <div className="text-sm font-semibold mb-1">💡 Insights:</div>
-                    <div className="text-sm whitespace-pre-wrap">{msg.insights}</div>
-                  </div>
-                )}
-              </div>
+            {msg.role === "assistant" && msg.content.includes("```sql") && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2"
+                onClick={() => {
+                  const sqlMatch = msg.content.match(/```sql\n([\s\S]+?)\n```/) || 
+                                  msg.content.match(/```\n([\s\S]+?)\n```/);
+                  if (sqlMatch) {
+                    navigator.clipboard.writeText(sqlMatch[1]);
+                    toast({
+                      title: "Copied!",
+                      description: "SQL query copied to clipboard",
+                    });
+                  }
+                }}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy SQL
+              </Button>
             )}
           </Card>
         ))}
