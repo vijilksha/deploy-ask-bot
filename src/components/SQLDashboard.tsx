@@ -8,7 +8,7 @@ import { QueryExecutor } from "./QueryExecutor";
 import { DocumentationManager } from "./DocumentationManager";
 import { SimilarQueries } from "./SimilarQueries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Database, History, Plus, LogOut, Play, FileText, Sparkles } from "lucide-react";
+import { MessageSquare, Database, History, Plus, LogOut, Play, FileText, Sparkles, CheckCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -25,7 +25,15 @@ export const SQLDashboard = () => {
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
   const [executorQuery, setExecutorQuery] = useState("");
   const [similarQuery, setSimilarQuery] = useState("");
+  const [dbConnection, setDbConnection] = useState<any>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const connection = localStorage.getItem("dbConnection");
+    if (connection) {
+      setDbConnection(JSON.parse(connection));
+    }
+  }, []);
 
   useEffect(() => {
     loadConversations();
@@ -117,7 +125,20 @@ export const SQLDashboard = () => {
           </div>
         </div>
 
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-3">
+          {dbConnection && (
+            <div className="p-3 bg-muted/50 rounded-lg space-y-1">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <CheckCircle className="w-4 h-4" />
+                Connected
+              </div>
+              <div className="text-xs text-muted-foreground space-y-0.5">
+                <div>Host: {dbConnection.host}:{dbConnection.port}</div>
+                <div>Database: {dbConnection.database}</div>
+                <div>User: {dbConnection.username}</div>
+              </div>
+            </div>
+          )}
           <Button variant="outline" onClick={handleDisconnect} className="w-full">
             <LogOut className="w-4 h-4 mr-2" />
             Disconnect
