@@ -2,13 +2,17 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Loader2, Send, Code, BookOpen, Zap } from "lucide-react";
+import { Loader2, Send, Code, BookOpen, Zap, Table } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Table as UITable, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
+  sqlQuery?: string;
+  queryResults?: any;
+  insights?: string;
 };
 
 type Mode = "chat" | "generate" | "explain" | "optimize";
@@ -164,18 +168,73 @@ export const SQLChat = ({
       }
 
       if (assistantContent) {
-        await saveMessage("assistant", assistantContent, mode === "generate" ? currentSQLQuery : undefined);
-        
-        // Generate embedding for the query if in generate mode
-        if (mode === "generate" && currentSQLQuery) {
-          await supabase.functions.invoke("generate-embeddings", {
-            body: {
-              text: `${userInput}\n${currentSQLQuery}`,
-              type: "query",
-              referenceId: null,
-            },
-          });
+        // If in generate mode, automatically execute the SQL
+        if (mode === "generate" && assistantContent.includes("SELECT")) {
+          try {
+            // Extract SQL query from response
+            const sqlMatch = assistantContent.match(/```sql\n([\s\S]+?)\n```/) || 
+                            assistantContent.match(/```\n([\s\S]+?)\n```/);
+            const sqlQuery = sqlMatch ? sqlMatch[1] : assistantContent;
+            
+            // Get database connection from localStorage
+            const dbConnection = localStorage.getItem("dbConnection");
+            if (dbConnection) {
+              const connDetails = JSON.parse(dbConnection);
+              
+              // Execute the query
+              const executeResponse = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/execute-sql`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    query: sqlQuery,
+                    dbConnection: connDetails,
+                  }),
+                }
+              );
+              
+              const executeResult = await executeResponse.json();
+              
+              if (executeResult.status === "success") {
+                // Update the last assistant message with results
+                setMessages(prev => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {
+                    ...updated[updated.length - 1],
+                    sqlQuery,
+                    queryResults: executeResult.data,
+                    insights: executeResult.insights,
+                  };
+                  return updated;
+                });
+                
+                toast({
+                  title: "Query executed successfully",
+                  description: `${executeResult.rowCount} rows returned`,
+                });
+              } else {
+                toast({
+                  title: "Query execution failed",
+                  description: executeResult.error,
+                  variant: "destructive",
+                });
+              }
+            }
+          } catch (execError) {
+            console.error("Execution error:", execError);
+            toast({
+              title: "Execution error",
+              description: execError instanceof Error ? execError.message : "Failed to execute query",
+              variant: "destructive",
+            });
+          }
         }
+        
+        await saveMessage("assistant", assistantContent, mode === "generate" ? currentSQLQuery : undefined);
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -239,10 +298,48 @@ export const SQLChat = ({
             className={`p-4 ${
               msg.role === "user" 
                 ? "bg-primary/10 ml-auto max-w-[80%]" 
-                : "bg-muted max-w-[80%]"
+                : "bg-muted max-w-full"
             }`}
           >
             <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content}</pre>
+            
+            {msg.queryResults && msg.queryResults.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Table className="w-4 h-4" />
+                  Query Results ({msg.queryResults.length} rows)
+                </div>
+                <div className="border rounded-lg overflow-auto max-h-96">
+                  <UITable>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(msg.queryResults[0]).map((key) => (
+                          <TableHead key={key}>{key}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {msg.queryResults.slice(0, 100).map((row: any, rowIdx: number) => (
+                        <TableRow key={rowIdx}>
+                          {Object.values(row).map((value: any, colIdx: number) => (
+                            <TableCell key={colIdx}>
+                              {value !== null ? String(value) : "NULL"}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </UITable>
+                </div>
+                
+                {msg.insights && (
+                  <div className="mt-3 p-3 bg-accent/50 rounded-lg">
+                    <div className="text-sm font-semibold mb-1">💡 Insights:</div>
+                    <div className="text-sm whitespace-pre-wrap">{msg.insights}</div>
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
         ))}
         {isLoading && (
