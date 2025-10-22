@@ -163,14 +163,61 @@ export const SQLChat = ({
       }
 
       if (assistantContent) {
+        // If in generate mode, automatically execute the SQL on imported data
+        if (mode === "generate" && assistantContent.includes("SELECT")) {
+          try {
+            // Extract SQL query from response
+            const sqlMatch = assistantContent.match(/```sql\n([\s\S]+?)\n```/) || 
+                            assistantContent.match(/```\n([\s\S]+?)\n```/);
+            const sqlQuery = sqlMatch ? sqlMatch[1].trim() : assistantContent.trim();
+            
+            // Execute the query on imported data
+            const executeResponse = await fetch(
+              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/query-imported-data`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                },
+                body: JSON.stringify({ query: sqlQuery }),
+              }
+            );
+            
+            const executeResult = await executeResponse.json();
+            
+            if (executeResult.status === "success") {
+              // Update the last assistant message with results
+              setMessages(prev => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  sqlQuery,
+                  queryResults: executeResult.data,
+                  insights: executeResult.insights,
+                };
+                return updated;
+              });
+              
+              toast({
+                title: "Query executed successfully",
+                description: `${executeResult.rowCount} rows returned`,
+              });
+            } else {
+              toast({
+                title: "Query execution note",
+                description: executeResult.error,
+                variant: "destructive",
+              });
+            }
+          } catch (execError) {
+            console.error("Execution error:", execError);
+          }
+        }
+        
         // Save final message to localStorage
         const finalMessages = [...messages, userMessage, { role: "assistant" as const, content: assistantContent }];
         localStorage.setItem(`messages_${conversationId}`, JSON.stringify(finalMessages));
-        
-        toast({
-          title: "Note",
-          description: "Copy the SQL query and run it manually in your local database. Edge functions cannot connect to localhost.",
-        });
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -238,6 +285,44 @@ export const SQLChat = ({
             }`}
           >
             <pre className="whitespace-pre-wrap font-sans text-sm">{msg.content}</pre>
+            
+            {msg.queryResults && msg.queryResults.length > 0 && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Table className="w-4 h-4" />
+                  Query Results ({msg.queryResults.length} rows)
+                </div>
+                <div className="border rounded-lg overflow-auto max-h-96">
+                  <UITable>
+                    <TableHeader>
+                      <TableRow>
+                        {Object.keys(msg.queryResults[0]).map((key) => (
+                          <TableHead key={key}>{key}</TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {msg.queryResults.slice(0, 100).map((row: any, rowIdx: number) => (
+                        <TableRow key={rowIdx}>
+                          {Object.values(row).map((value: any, colIdx: number) => (
+                            <TableCell key={colIdx}>
+                              {value !== null ? String(value) : "NULL"}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </UITable>
+                </div>
+                
+                {msg.insights && (
+                  <div className="mt-3 p-3 bg-accent/50 rounded-lg">
+                    <div className="text-sm font-semibold mb-1">💡 Insights:</div>
+                    <div className="text-sm whitespace-pre-wrap">{msg.insights}</div>
+                  </div>
+                )}
+              </div>
+            )}
             
             {msg.role === "assistant" && msg.content.includes("```sql") && (
               <Button

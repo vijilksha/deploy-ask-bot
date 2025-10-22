@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.find-similar]
 verify_jwt = true
+
+[functions.query-imported-data]
+verify_jwt = true

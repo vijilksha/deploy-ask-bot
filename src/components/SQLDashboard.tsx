@@ -7,8 +7,9 @@ import { SchemaManager } from "./SchemaManager";
 import { QueryExecutor } from "./QueryExecutor";
 import { DocumentationManager } from "./DocumentationManager";
 import { SimilarQueries } from "./SimilarQueries";
+import { DataImporter } from "./DataImporter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Database, History, Plus, LogOut, Play, FileText, Sparkles, CheckCircle } from "lucide-react";
+import { MessageSquare, Database, History, Plus, LogOut, Play, FileText, Sparkles, CheckCircle, Upload } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -170,6 +171,10 @@ export const SQLDashboard = () => {
               <Database className="w-4 h-4 mr-2" />
               Schemas
             </TabsTrigger>
+            <TabsTrigger value="import">
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="chat" className="flex-1 m-0">
@@ -248,6 +253,10 @@ export const SQLDashboard = () => {
                 <SimilarQueries currentQuery={similarQuery} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="import" className="flex-1 m-0 p-6 overflow-y-auto">
+            <DataImporter />
           </TabsContent>
         </Tabs>
       </div>
