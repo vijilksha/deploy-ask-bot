@@ -1,23 +1,28 @@
 import { useState, useEffect } from "react";
-import { DatabaseConnection, DatabaseConnectionInfo } from "@/components/DatabaseConnection";
+import { supabase } from "@/integrations/supabase/client";
+import { AuthForm } from "@/components/AuthForm";
 import Index from "./Index";
 
 const IndexWrapper = () => {
-  const [connected, setConnected] = useState(false);
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if connection info exists in localStorage
-    const connectionInfo = localStorage.getItem("dbConnection");
-    if (connectionInfo) {
-      setConnected(true);
-    }
-    setLoading(false);
-  }, []);
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-  const handleConnect = (connectionInfo: DatabaseConnectionInfo) => {
-    setConnected(true);
-  };
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   if (loading) {
     return (
@@ -27,7 +32,7 @@ const IndexWrapper = () => {
     );
   }
 
-  return connected ? <Index /> : <DatabaseConnection onConnect={handleConnect} />;
+  return session ? <Index /> : <AuthForm />;
 };
 
 export default IndexWrapper;

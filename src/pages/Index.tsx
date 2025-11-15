@@ -1,7 +1,7 @@
-import { SQLDashboard } from "@/components/SQLDashboard";
+import { Dashboard } from "@/components/Dashboard";
 
 const Index = () => {
-  return <SQLDashboard />;
+  return <Dashboard />;
 };
 
 export default Index;
