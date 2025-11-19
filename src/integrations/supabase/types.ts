@@ -16,35 +16,68 @@ export type Database = {
     Tables: {
       contacts: {
         Row: {
+          account_name: string | null
+          billable_status: string | null
+          cohort_code: string | null
           created_at: string
           deployment_status: string | null
+          edl_comments_on_nbl: string | null
+          edl_comments_on_role: string | null
+          eid: string | null
           email: string
           email_sent_at: string | null
+          empid: string | null
+          fullname: string | null
           id: string
           name: string
+          project: string | null
           response: string | null
+          role_assigned: string | null
+          type_of_hire: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          account_name?: string | null
+          billable_status?: string | null
+          cohort_code?: string | null
           created_at?: string
           deployment_status?: string | null
+          edl_comments_on_nbl?: string | null
+          edl_comments_on_role?: string | null
+          eid?: string | null
           email: string
           email_sent_at?: string | null
+          empid?: string | null
+          fullname?: string | null
           id?: string
           name: string
+          project?: string | null
           response?: string | null
+          role_assigned?: string | null
+          type_of_hire?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          account_name?: string | null
+          billable_status?: string | null
+          cohort_code?: string | null
           created_at?: string
           deployment_status?: string | null
+          edl_comments_on_nbl?: string | null
+          edl_comments_on_role?: string | null
+          eid?: string | null
           email?: string
           email_sent_at?: string | null
+          empid?: string | null
+          fullname?: string | null
           id?: string
           name?: string
+          project?: string | null
           response?: string | null
+          role_assigned?: string | null
+          type_of_hire?: string | null
           updated_at?: string
           user_id?: string
         }

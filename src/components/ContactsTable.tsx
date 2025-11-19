@@ -22,6 +22,18 @@ interface Contact {
   id: string;
   name: string;
   email: string;
+  empid?: string;
+  fullname?: string;
+  type_of_hire?: string;
+  cohort_code?: string;
+  project?: string;
+  role_assigned?: string;
+  comments?: string;
+  billable_status?: string;
+  account_name?: string;
+  eid?: string;
+  edl_comments_on_nbl?: string;
+  edl_comments_on_role?: string;
   deployment_status: string;
   response: string | null;
   email_sent_at: string | null;
@@ -40,29 +52,30 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
   const [openDialog, setOpenDialog] = useState(false);
   const { toast } = useToast();
 
-  const handleSendEmail = async (contact: Contact) => {
+  const handleSendTeamsMessage = async (contact: Contact) => {
     setSendingEmail(contact.id);
     try {
-      const { data, error } = await supabase.functions.invoke("send-deployment-email", {
-        body: { name: contact.name, email: contact.email },
+      const { data, error } = await supabase.functions.invoke("send-teams-message", {
+        body: { 
+          eid: contact.eid,
+          contactId: contact.id,
+          fullname: contact.fullname || contact.name,
+          project: contact.project,
+          role_assigned: contact.role_assigned,
+        },
       });
 
       if (error) throw error;
 
-      await supabase
-        .from("contacts")
-        .update({ email_sent_at: new Date().toISOString() })
-        .eq("id", contact.id);
-
       toast({
-        title: "Email sent!",
-        description: `Reminder email sent to ${contact.name}`,
+        title: "Teams message sent!",
+        description: `Message sent to ${contact.eid} for ${contact.fullname || contact.name}`,
       });
       onRefresh();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to send email",
+        description: error.message || "Failed to send Teams message",
         variant: "destructive",
       });
     } finally {
@@ -123,11 +136,11 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
     }
   };
 
-  const handleUpdateResponse = async (id: string, response: string) => {
+  const handleUpdateResponse = async (id: string, edl_comments_on_role: string) => {
     try {
       const { error } = await supabase
         .from("contacts")
-        .update({ response })
+        .update({ edl_comments_on_role })
         .eq("id", id);
 
       if (error) throw error;
@@ -202,63 +215,67 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>EmpID</TableHead>
+                <TableHead>Full Name</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>EID</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Email Sent</TableHead>
-                <TableHead>Response</TableHead>
+                <TableHead>EDL Comments</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {contacts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                    No contacts yet. Add your first contact to get started.
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    No contacts yet. Upload an Excel file to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 contacts.map((contact) => (
                   <TableRow key={contact.id}>
-                    <TableCell className="font-medium">{contact.name}</TableCell>
-                    <TableCell>{contact.email}</TableCell>
+                    <TableCell className="font-medium">{contact.empid}</TableCell>
+                    <TableCell>{contact.fullname || contact.name}</TableCell>
+                    <TableCell>{contact.project}</TableCell>
+                    <TableCell>{contact.role_assigned}</TableCell>
+                    <TableCell>{contact.eid}</TableCell>
                     <TableCell>
                       <Badge variant={contact.deployment_status === "deployed" ? "default" : "secondary"}>
                         {contact.deployment_status}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {contact.email_sent_at
-                        ? new Date(contact.email_sent_at).toLocaleDateString()
-                        : "Not sent"}
-                    </TableCell>
-                    <TableCell>
                       <Textarea
-                        value={contact.response || ""}
+                        value={contact.edl_comments_on_role || ""}
                         onChange={(e) => handleUpdateResponse(contact.id, e.target.value)}
-                        placeholder="Add response..."
+                        placeholder="Awaiting response..."
                         className="min-h-[60px]"
                       />
                     </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleSendEmail(contact)}
-                        disabled={sendingEmail === contact.id}
-                      >
-                        {sendingEmail === contact.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Mail className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDeleteContact(contact.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendTeamsMessage(contact)}
+                          disabled={sendingEmail === contact.id || !contact.eid}
+                          title={!contact.eid ? "No EID provided" : "Send Teams message"}
+                        >
+                          {sendingEmail === contact.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Mail className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteContact(contact.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
