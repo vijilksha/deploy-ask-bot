@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactsTable } from "./ContactsTable";
+import { ExcelUploader } from "./ExcelUploader";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +10,18 @@ interface Contact {
   id: string;
   name: string;
   email: string;
+  empid?: string;
+  fullname?: string;
+  type_of_hire?: string;
+  cohort_code?: string;
+  project?: string;
+  role_assigned?: string;
+  comments?: string;
+  billable_status?: string;
+  account_name?: string;
+  eid?: string;
+  edl_comments_on_nbl?: string;
+  edl_comments_on_role?: string;
   deployment_status: string;
   response: string | null;
   email_sent_at: string | null;
@@ -72,6 +85,9 @@ export const Dashboard = () => {
         </div>
       </header>
       <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <ExcelUploader onUploadComplete={fetchContacts} />
+        </div>
         <ContactsTable contacts={contacts} onRefresh={fetchContacts} />
       </main>
     </div>
