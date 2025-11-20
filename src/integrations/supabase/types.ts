@@ -19,6 +19,7 @@ export type Database = {
           account_name: string | null
           billable_status: string | null
           cohort_code: string | null
+          comments: string | null
           created_at: string
           deployment_status: string | null
           edl_comments_on_nbl: string | null
@@ -41,6 +42,7 @@ export type Database = {
           account_name?: string | null
           billable_status?: string | null
           cohort_code?: string | null
+          comments?: string | null
           created_at?: string
           deployment_status?: string | null
           edl_comments_on_nbl?: string | null
@@ -63,6 +65,7 @@ export type Database = {
           account_name?: string | null
           billable_status?: string | null
           cohort_code?: string | null
+          comments?: string | null
           created_at?: string
           deployment_status?: string | null
           edl_comments_on_nbl?: string | null
