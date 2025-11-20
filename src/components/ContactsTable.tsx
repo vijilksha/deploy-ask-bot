@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Mail, Trash2, Plus, Loader2 } from "lucide-react";
+import { Mail, Trash2, Plus, Loader2, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
@@ -47,10 +47,47 @@ interface ContactsTableProps {
 
 export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
   const [sendingEmail, setSendingEmail] = useState<string | null>(null);
+  const [sendingBulk, setSendingBulk] = useState(false);
   const [newContact, setNewContact] = useState({ name: "", email: "" });
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const { toast } = useToast();
+
+  const handleSendBulkEmails = async () => {
+    if (contacts.length === 0) {
+      toast({
+        title: "No contacts",
+        description: "No contacts to send emails to",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSendingBulk(true);
+    try {
+      const contactIds = contacts.map(c => c.id);
+      
+      const { data, error } = await supabase.functions.invoke("send-bulk-emails", {
+        body: { contactIds },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Bulk emails sent!",
+        description: data.message,
+      });
+      onRefresh();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send bulk emails",
+        variant: "destructive",
+      });
+    } finally {
+      setSendingBulk(false);
+    }
+  };
 
   const handleSendTeamsMessage = async (contact: Contact) => {
     setSendingEmail(contact.id);
@@ -211,6 +248,25 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
         </Dialog>
       </CardHeader>
       <CardContent>
+        <div className="mb-4 flex justify-end">
+          <Button 
+            onClick={handleSendBulkEmails} 
+            disabled={sendingBulk || contacts.length === 0}
+            size="lg"
+          >
+            {sendingBulk ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending to {contacts.length} contacts...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send Bulk Emails ({contacts.length})
+              </>
+            )}
+          </Button>
+        </div>
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -222,13 +278,14 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
                 <TableHead>EID</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>EDL Comments</TableHead>
+                <TableHead>Email Reply</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {contacts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     No contacts yet. Upload an Excel file to get started.
                   </TableCell>
                 </TableRow>
@@ -251,6 +308,15 @@ export const ContactsTable = ({ contacts, onRefresh }: ContactsTableProps) => {
                         onChange={(e) => handleUpdateResponse(contact.id, e.target.value)}
                         placeholder="Awaiting response..."
                         className="min-h-[60px]"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Textarea
+                        value={contact.response || ""}
+                        onChange={(e) => handleUpdateResponse(contact.id, e.target.value)}
+                        placeholder="Email reply will appear here..."
+                        className="min-h-[60px]"
+                        disabled
                       />
                     </TableCell>
                     <TableCell className="text-right">
